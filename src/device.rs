@@ -68,6 +68,26 @@ impl<'a> Device<'a> {
         unsafe { libusb_get_bus_number(self.device) }
     }
 
+    /// Returns the devices's port number on the bus that it's connected to.
+    pub fn port_number(&self) -> u8 {
+        unsafe { libusb_get_port_number(self.device) }
+    }
+
+    /// Returns the devices's port numbers on the bus that it's connected to.
+    pub fn port_numbers(&self) -> Vec<u8> {
+        let mut array: [u8; 7] = [0; 7];
+        let array_ptr: *mut u8 = &mut array[0] as *mut u8;
+        unsafe {
+            let actual_len =
+                libusb_get_port_numbers(self.device, array_ptr, array.len() as i32) as usize;
+            let mut nums = Vec::new();
+            for num in &array[..actual_len] {
+                nums.push(num.clone());
+            }
+            nums
+        }
+    }
+
     /// Returns the device's address on the bus that it's connected to.
     pub fn address(&self) -> u8 {
         unsafe { libusb_get_device_address(self.device) }
@@ -85,6 +105,21 @@ impl<'a> Device<'a> {
         try_unsafe!(libusb_open(self.device, &mut handle));
 
         Ok(unsafe { device_handle::from_libusb(self.context, handle) })
+    }
+
+    /// Returns the parent device
+    pub fn parent(&self) -> Option<Self> {
+        unsafe {
+            let parent = libusb_get_parent(self.device);
+            if parent.is_null() {
+                None
+            } else {
+                Some(Self {
+                    context: self.context,
+                    device: parent,
+                })
+            }
+        }
     }
 }
 
